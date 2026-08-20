@@ -586,15 +586,24 @@
 </div>
 
 <script>
-    // WEB3 CONFIG
+    // WEB3 CONFIG (Укажите свои реальные Base58 адреса после деплоя)
     const RPC_ENDPOINT = "https://api.mainnet-beta.solana.com"; 
-    const PROGRAM_ID = new solanaWeb3.PublicKey("GearSimpleCrank11111111111111111111111111111");
-    const MINT_ADDRESS = new solanaWeb3.PublicKey("ВАШ_MINT_ADDRESS_AXIS");
-    const VAULT_TOKEN_ACCOUNT = new solanaWeb3.PublicKey("ВАШ_VAULT_TOKEN_ACCOUNT");
-    const DEV_TREASURY = new solanaWeb3.PublicKey("ВАШ_DEV_TREASURY_PUBKEY");
+    const RAW_PROGRAM_ID = "GearSimpleCrank11111111111111111111111111111";
+    const RAW_MINT_ADDRESS = "ВАШ_MINT_ADDRESS_AXIS"; 
+    const RAW_VAULT_TOKEN_ACCOUNT = "ВАШ_VAULT_TOKEN_ACCOUNT";
+    const RAW_DEV_TREASURY = "ВАШ_DEV_TREASURY_PUBKEY";
 
     const connection = new solanaWeb3.Connection(RPC_ENDPOINT, "confirmed");
     let walletPubKey = null;
+
+    // Безопасная инициализация PublicKey без выпадания ошибки в консоль
+    function safePubKey(address) {
+        try {
+            return new solanaWeb3.PublicKey(address);
+        } catch (e) {
+            return null;
+        }
+    }
 
     async function connectWallet() {
         if ("solana" in window) {
@@ -614,45 +623,58 @@
     }
 
     async function fetchVaultBalance() {
+        const vaultKey = safePubKey(RAW_VAULT_TOKEN_ACCOUNT);
+        if (!vaultKey) {
+            document.getElementById("statusMessage").innerText = "Замените плейсхолдеры в JS на адреса";
+            return;
+        }
+
         try {
-            const balanceData = await connection.getTokenAccountBalance(VAULT_TOKEN_ACCOUNT);
+            const balanceData = await connection.getTokenAccountBalance(vaultKey);
             const total = balanceData.value.uiAmount || 0;
 
             document.getElementById("vaultBalance").innerText = total.toLocaleString() + " $AXIS";
             document.getElementById("bountyAmount").innerText = (total * 0.10).toLocaleString();
             document.getElementById("burnAmount").innerText = (total * 0.60).toLocaleString();
 
-            if (total > 0 && walletPubKey) {
-                document.getElementById("harvestBtn").disabled = false;
-            } else {
-                document.getElementById("harvestBtn").disabled = true;
-            }
+            document.getElementById("harvestBtn").disabled = !(total > 0 && walletPubKey);
         } catch (err) {
-            document.getElementById("statusMessage").innerText = "Ожидание инициализации Vault";
+            document.getElementById("statusMessage").innerText = "Ожидание деплоя / ошибки RPC";
         }
     }
 
     async function executeHarvest() {
         if (!walletPubKey) return;
 
+        const programId = safePubKey(RAW_PROGRAM_ID);
+        const mintKey = safePubKey(RAW_MINT_ADDRESS);
+        const vaultKey = safePubKey(RAW_VAULT_TOKEN_ACCOUNT);
+        const devKey = safePubKey(RAW_DEV_TREASURY);
+
+        if (!programId || !mintKey || !vaultKey || !devKey) {
+            alert("Не указаны валидные адреса контрактов!");
+            return;
+        }
+
         document.getElementById("harvestBtn").disabled = true;
-        document.getElementById("statusMessage").innerText = "Подтвердите транзакцию в кошельке...";
+        document.getElementById("statusMessage").innerText = "Подтвердите транзакцию...";
 
         try {
-            const instructionData = Buffer.from([155, 234, 112, 45, 120, 19, 88, 102]); 
+            // Нативный Uint8Array вместо Buffer (для работы в браузере без сборщиков)
+            const instructionData = new Uint8Array([155, 234, 112, 45, 120, 19, 88, 102]); 
 
             const keys = [
-                { pubkey: MINT_ADDRESS, isSigner: false, isWritable: false },
-                { pubkey: VAULT_TOKEN_ACCOUNT, isSigner: false, isWritable: true },
+                { pubkey: mintKey, isSigner: false, isWritable: false },
+                { pubkey: vaultKey, isSigner: false, isWritable: true },
                 { pubkey: walletPubKey, isSigner: false, isWritable: false },
-                { pubkey: DEV_TREASURY, isSigner: false, isWritable: true },
+                { pubkey: devKey, isSigner: false, isWritable: true },
                 { pubkey: walletPubKey, isSigner: false, isWritable: true },
                 { pubkey: new solanaWeb3.PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"), isSigner: false, isWritable: false }
             ];
 
             const ix = new solanaWeb3.TransactionInstruction({
                 keys,
-                programId: PROGRAM_ID,
+                programId,
                 data: instructionData,
             });
 
@@ -670,15 +692,14 @@
         }
     }
 
-    // FAQ Accordion Toggle Script
+    // FAQ Accordion Toggle
     document.querySelectorAll('.faq-question').forEach(item => {
         item.addEventListener('click', () => {
-            const parent = item.parentNode;
-            parent.classList.toggle('active');
+            item.parentNode.classList.toggle('active');
         });
     });
 
-    setInterval(fetchVaultBalance, 8000);
+    setInterval(fetchVaultBalance, 10000);
 </script>
 
 </body>
