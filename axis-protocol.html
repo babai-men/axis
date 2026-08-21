@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXIS Protocol | Autonomous Volume Flywheel</title>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="axis-logo.svg">
+    <style>
+        :root {
+            /* Base surfaces */
+            --bg-color: #08090b;
+            --panel-bg: #101113;
+            --card-bg: #17181c;
+            --border-color: #24262b;
+            --border-soft: #1b1c20;
+
+            /* Text */
+            --text-main: #f2f1ee;
+            --text-muted: #8c8d93;
+            --text-faint: #5c5d63;
+
+            /* Flywheel accents — each carries a fixed meaning throughout the page */
+            --accent-gold: #c9a227;   /* brand / dev treasury (30%) */
+            --accent-gold-hover: #e0b933;
+            --accent-ember: #e2623d;  /* burn (60%) */
+            --accent-mint: #6fcf97;   /* bounty / reward (10%) */
+
+            --font-display: 'Space Grotesk', -apple-system, sans-serif;
+            --font-body: 'Inter', -apple-system, sans-serif;
+            --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-body);
+            scroll-behavior: smooth;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+        }
+
+        html { background: var(--bg-color); }
+
+        body {
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(ellipse 900px 500px at 50% -10%, rgba(201, 162, 39, 0.10), transparent 60%),
+                radial-gradient(ellipse 700px 500px at 90% 20%, rgba(226, 98, 61, 0.05), transparent 60%);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        ::selection { background: var(--accent-gold); color: #08090b; }
+
+        /* NAVBAR */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 22px 0;
+            border-bottom: 1px solid var(--border-soft);
+            position: sticky;
+            top: 0;
+            background: rgba(8, 9, 11, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .logo img {
+            width: 30px;
+            height: 30px;
+            display: block;
+        }
+
+        /* BANNER */
+        .banner-wrap {
+            margin-top: 28px;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .banner-wrap svg {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        @media (max-width: 900px) {
+            .banner-wrap { border-radius: 12px; }
+        }
+
+        @media (max-width: 640px) {
+            .banner-wrap { display: none; }
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--text-main); }
+
+        .btn-connect {
+            font-family: var(--font-mono);
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 12px;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-connect:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        /* HERO */
+        .hero {
+            padding: 80px 0 40px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            background: rgba(201, 162, 39, 0.08);
+            color: var(--accent-gold);
+            border: 1px solid rgba(201, 162, 39, 0.25);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-bottom: 28px;
+        }
+
+        .badge::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-mint);
+            box-shadow: 0 0 8px var(--accent-mint);
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: 54px;
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            line-height: 1.08;
+            margin-bottom: 22px;
+        }
+
+        .hero h1 em {
+            font-style: normal;
+            background: linear-gradient(120deg, var(--accent-gold) 0%, #f0d97a 50%, var(--accent-gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 17px;
+            color: var(--text-muted);
+            max-width: 620px;
+            margin: 0 auto 8px;
+        }
+
+        /* SIGNATURE ELEMENT — the flywheel: a literal, rotating diagram of the
+           0.1% tax split that mirrors the copy below it (60 / 30 / 10). */
+        .flywheel-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            margin: 44px 0 8px;
+        }
+
+        .flywheel {
+            position: relative;
+            width: 220px;
+            height: 220px;
+        }
+
+        .flywheel svg { width: 100%; height: 100%; }
+
+        .flywheel-ring {
+            animation: spin 40s linear infinite;
+            transform-origin: 110px 110px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .flywheel-core {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flywheel-core .tax {
+            font-family: var(--font-display);
+            font-size: 30px;
+            font-weight: 700;
+        }
+
+        .flywheel-core .tax-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-faint);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .flywheel-legend {
+            display: flex;
+            gap: 22px;
+            margin-top: 20px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .flywheel-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+
+        .flywheel-legend .sw {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+        }
+
+        /* DASHBOARD WIDGET */
+        .widget-wrapper {
+            max-width: 460px;
+            margin: 56px auto 100px;
+            background: linear-gradient(180deg, var(--panel-bg), #0c0d0f);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 26px;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .widget-header .label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .widget-header .live {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--accent-mint);
+        }
+
+        .widget-header .live .pulse {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-mint);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-soft);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: left;
+        }
+
+        .stat-card.full { grid-column: span 2; border-color: rgba(201, 162, 39, 0.2); }
+
+        .stat-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value { font-family: var(--font-mono); font-size: 19px; font-weight: 600; }
+        .stat-value.gold { color: var(--accent-gold); }
+        .stat-value.mint { color: var(--accent-mint); }
+        .stat-value.ember { color: var(--accent-ember); }
+
+        .btn-harvest {
+            width: 100%;
+            background: var(--accent-gold);
+            border: none;
+            color: #08090b;
+            padding: 17px;
+            border-radius: 10px;
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-harvest:hover:not(:disabled) {
+            background: var(--accent-gold-hover);
+            box-shadow: 0 0 24px rgba(201, 162, 39, 0.35);
+        }
+
+        .btn-harvest:disabled {
+            background: #1c1d21;
+            color: var(--text-faint);
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-faint);
+            text-align: center;
+        }
+
+        /* SECTIONS */
+        section { padding: 64px 0; border-top: 1px solid var(--border-soft); }
+
+        .section-eyebrow {
+            display: block;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-gold);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 14px;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            max-width: 580px;
+            margin: 0 auto 48px;
+            font-size: 15px;
+        }
+
+        /* MECHANISM CARDS — color-coded to match the flywheel legend */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .feature-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-top: 2px solid var(--card-accent, var(--accent-gold));
+            border-radius: 14px;
+            padding: 26px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .feature-card:hover { transform: translateY(-3px); }
+
+        .feature-card.ember { --card-accent: var(--accent-ember); }
+        .feature-card.gold { --card-accent: var(--accent-gold); }
+        .feature-card.mint { --card-accent: var(--accent-mint); }
+
+        .feature-percent {
+            font-family: var(--font-display);
+            font-size: 34px;
+            font-weight: 700;
+            color: var(--card-accent, var(--accent-gold));
+            margin-bottom: 10px;
+        }
+
+        .feature-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+        .feature-desc { font-size: 14px; color: var(--text-muted); }
+
+        /* HOW IT WORKS (STEPS) — a real sequence, so numbering earns its place */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            background: var(--border-soft);
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .step-card {
+            background: var(--panel-bg);
+            padding: 24px 22px;
+            position: relative;
+        }
+
+        .step-num {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+        }
+
+        .step-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+        .step-desc { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+
+        /* TOKENOMICS TABLE */
+        .tokenomics-table {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 8px 32px;
+        }
+
+        .table-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 0;
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .table-row:last-child { border-bottom: none; }
+        .table-key { color: var(--text-muted); font-size: 14px; }
+        .table-val { font-family: var(--font-mono); font-weight: 500; font-size: 14px; }
+        .table-val.ok { color: var(--accent-mint); }
+
+        /* ROADMAP */
+        .roadmap-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .roadmap-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 26px;
+        }
+
+        .roadmap-phase {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .roadmap-title { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+
+        .roadmap-list {
+            list-style: none;
+            color: var(--text-muted);
+            font-size: 13.5px;
+        }
+
+        .roadmap-list li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .roadmap-list li::before {
+            content: "";
+            width: 5px;
+            height: 5px;
+            margin-top: 7px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: var(--accent-gold);
+        }
+
+        /* FAQ ACCORDION */
+        .faq-wrapper { max-width: 720px; margin: 0 auto; }
+
+        .faq-item {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            padding: 19px 22px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: color 0.2s;
+        }
+
+        .faq-question span {
+            font-family: var(--font-mono);
+            color: var(--text-faint);
+            transition: transform 0.2s ease;
+        }
+
+        .faq-answer {
+            padding: 0 22px 20px;
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .faq-item.active .faq-answer { display: block; }
+        .faq-item.active .faq-question { color: var(--accent-gold); }
+        .faq-item.active .faq-question span { transform: rotate(45deg); color: var(--accent-gold); }
+
+        /* FOOTER */
+        footer {
+            padding: 36px 0;
+            border-top: 1px solid var(--border-soft);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-faint);
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 22px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover { color: var(--accent-gold); }
+
+        @media (max-width: 900px) {
+            .cards-grid, .roadmap-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .hero h1 { font-size: 36px; }
+            .nav-links { display: none; }
+            footer { flex-direction: column; gap: 14px; text-align: center; }
+            .footer-links a:first-child { margin-left: 0; }
+        }
+
+        @media (max-width: 520px) {
+            .steps-grid { grid-template-columns: 1fr; }
+            .tokenomics-table { padding: 8px 20px; }
+            .table-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <nav>
+        <div class="logo"><img src="axis-logo.svg" alt="AXIS logo">$AXIS</div>
+        <ul class="nav-links">
+            <li><a href="#dashboard">Дашборд</a></li>
+            <li><a href="#mechanism">Механика</a></li>
+            <li><a href="#steps">Принцип работы</a></li>
+            <li><a href="#tokenomics">Токеномика</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+            <li><a href="#faq">FAQ</a></li>
+        </ul>
+        <button id="connectBtn" class="btn-connect" onclick="connectWallet()">Connect Wallet</button>
+    </nav>
+
+    <!-- BANNER -->
+    <div class="banner-wrap">
+        <img src="axis-banner.svg" alt="AXIS Protocol — Autonomous Volume Flywheel, Solana Token-2022">
+    </div>
+
+    <!-- HERO -->
+    <section class="hero" style="border-top: none;">
+        <div class="badge">Solana Token-2022 Architecture</div>
+        <h1>Автономный <em>дефляционный</em><br>маховик</h1>
+        <p>AXIS ($AXIS) — самоподдерживающийся DeFi-протокол. Каждый перевод генерирует фиксированный налог 0.1%, который непрерывно сокращает эмиссию и выплачивает 10% вознаграждения за его сбор.</p>
+
+        <!-- Signature element: the flywheel literally shows the 60/30/10 split in motion -->
+        <div class="flywheel-section">
+            <div class="flywheel">
+                <svg viewBox="0 0 220 220">
+                    <circle cx="110" cy="110" r="98" fill="none" stroke="#1b1c20" stroke-width="14"/>
+                    <g class="flywheel-ring">
+                        <circle cx="110" cy="110" r="98" fill="none" stroke="#e2623d" stroke-width="14"
+                                stroke-dasharray="369.5 615.8" stroke-dashoffset="0" stroke-linecap="round"/>
+                        <circle cx="110" cy="110" r="98" fill="none" stroke="#c9a227" stroke-width="14"
+                                stroke-dasharray="184.7 615.8" stroke-dashoffset="-369.5" stroke-linecap="round"/>
+                        <circle cx="110" cy="110" r="98" fill="none" stroke="#6fcf97" stroke-width="14"
+                                stroke-dasharray="61.6 615.8" stroke-dashoffset="-554.2" stroke-linecap="round"/>
+                    </g>
+                </svg>
+                <div class="flywheel-core">
+                    <div class="tax">0.1%</div>
+                    <div class="tax-label">Tax / tx</div>
+                </div>
+            </div>
+            <div class="flywheel-legend">
+                <span><i class="sw" style="background:var(--accent-ember)"></i>Burn 60%</span>
+                <span><i class="sw" style="background:var(--accent-gold)"></i>Treasury 30%</span>
+                <span><i class="sw" style="background:var(--accent-mint)"></i>Bounty 10%</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" style="border-top: none; padding-top: 0;">
+        <div class="widget-wrapper">
+            <div class="widget-header">
+                <span class="label">Vault Status</span>
+                <span class="live"><i class="pulse"></i>LIVE</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card full">
+                    <div class="stat-label">Накоплено налога к сбору (Vault)</div>
+                    <div id="vaultBalance" class="stat-value gold">0.00 $AXIS</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Твой Bounty (10%)</div>
+                    <div id="bountyAmount" class="stat-value mint">0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Сгорает (60%)</div>
+                    <div id="burnAmount" class="stat-value ember">0.00</div>
+                </div>
+            </div>
+
+            <button id="harvestBtn" class="btn-harvest" onclick="executeHarvest()" disabled>Собрать налог и сжечь</button>
+            <div id="statusMessage" class="status">Подключите кошелек</div>
+        </div>
+    </section>
+
+    <!-- MECHANISM SPLIT -->
+    <section id="mechanism">
+        <span class="section-eyebrow">Распределение</span>
+        <h2 class="section-title">Куда уходит налог 0.1%</h2>
+        <p class="section-subtitle">Стандарт Solana Token-2022 позволяет удерживать комиссию непосредственно на токен-аккаунтах без участия централизованных операторов.</p>
+        <div class="cards-grid">
+            <div class="feature-card ember">
+                <div class="feature-percent">60%</div>
+                <div class="feature-title">Безвозвратный Burn</div>
+                <div class="feature-desc">Токены навсегда изымаются из обращения, математически увеличивая ценность оставшихся $AXIS при каждом свапе.</div>
+            </div>
+            <div class="feature-card gold">
+                <div class="feature-percent">30%</div>
+                <div class="feature-title">Dev Treasury</div>
+                <div class="feature-desc">Направляется на поддержание экосистемы, серверную инфраструктуру, ликвидность и маркетмейкинг.</div>
+            </div>
+            <div class="feature-card mint">
+                <div class="feature-percent">10%</div>
+                <div class="feature-title">Public Bounty</div>
+                <div class="feature-desc">Мгновенное вознаграждение пользователю или MEV-боту, запустившему исполнение сборщика (Crank).</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="steps">
+        <span class="section-eyebrow">Цикл</span>
+        <h2 class="section-title">Как работает протокол</h2>
+        <p class="section-subtitle">Замкнутый цикл непрерывного сжигания предложения на уровне смарт-контракта.</p>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">01 · Trade</div>
+                <div class="step-title">Торговля & Свапы</div>
+                <div class="step-desc">При каждой транзакции $AXIS в пуле Meteora DLMM или между кошельками автоматически удерживается 0.1%.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">02 · Accrue</div>
+                <div class="step-title">Накопление</div>
+                <div class="step-desc">Налог аккумулируется в поле withheldAmount на токен-аккаунте пула ликвидности.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">03 · Crank</div>
+                <div class="step-title">Вызов Crank</div>
+                <div class="step-desc">Любой пользователь через этот dApp или MEV-бот отправляет транзакцию сбора налога в смарт-контракт.</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">04 · Split</div>
+                <div class="step-title">Сплит & Сжигание</div>
+                <div class="step-desc">Контракт распределяет налог: 60% сгорает, 30% идет в Dev-фонд, а вы получаете 10% Bounty.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TOKENOMICS -->
+    <section id="tokenomics">
+        <span class="section-eyebrow">Безопасность</span>
+        <h2 class="section-title">Параметры и безопасность</h2>
+        <p class="section-subtitle">Все ключевые административные права безвозвратно заблокированы (Revoked).</p>
+        <div class="tokenomics-table">
+            <div class="table-row">
+                <span class="table-key">Общее предложение (Total Supply)</span>
+                <span class="table-val">10 000 000 000 $AXIS</span>
+            </div>
+            <div class="table-row">
+                <span class="table-key">Стандарт токена</span>
+                <span class="table-val">Solana Token-2022 Extension</span>
+            </div>
+            <div class="table-row">
+                <span class="table-key">Налог на перевод (Transfer Fee)</span>
+                <span class="table-val">0.1% (Фиксирован в коде)</span>
+            </div>
+            <div class="table-row">
+                <span class="table-key">Право допечатывания (Mint Authority)</span>
+                <span class="table-val ok">Отключено (Null)</span>
+            </div>
+            <div class="table-row">
+                <span class="table-key">Право блокировки (Freeze Authority)</span>
+                <span class="table-val ok">Отключено (Null)</span>
+            </div>
+            <div class="table-row">
+                <span class="table-key">Ликвидность (LP Status)</span>
+                <span class="table-val ok">100% Permanently Locked (Meteora DLMM)</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ROADMAP -->
+    <section id="roadmap">
+        <span class="section-eyebrow">Roadmap</span>
+        <h2 class="section-title">Дорожная карта</h2>
+        <p class="section-subtitle">Этапы развития протокола AXIS в экосистеме Solana.</p>
+        <div class="roadmap-grid">
+            <div class="roadmap-card">
+                <div class="roadmap-phase">Фаза 1</div>
+                <div class="roadmap-title">Запуск & Деплой</div>
+                <ul class="roadmap-list">
+                    <li>Деплой Token-2022 и Anchor-программы</li>
+                    <li>Создание пула Meteora DLMM</li>
+                    <li>Сжигание LP-токенов</li>
+                    <li>Запуск dApp-дашборда на GitHub Pages</li>
+                </ul>
+            </div>
+            <div class="roadmap-card">
+                <div class="roadmap-phase">Фаза 2</div>
+                <div class="roadmap-title">MEV & Автоматизация</div>
+                <ul class="roadmap-list">
+                    <li>Верификация кода на Solscan</li>
+                    <li>Подключение открытых MEV-ботов (Crank)</li>
+                    <li>Интеграция с DexScreener и Birdeye</li>
+                    <li>Маркетинг и формирование сообщества</li>
+                </ul>
+            </div>
+            <div class="roadmap-card">
+                <div class="roadmap-phase">Фаза 3</div>
+                <div class="roadmap-title">Масштабирование</div>
+                <ul class="roadmap-list">
+                    <li>Автоматический Telegram/X Burn-бот</li>
+                    <li>Листинг на CoinGecko и CoinMarketCap</li>
+                    <li>Рост объемов и ускорение дефляции</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq">
+        <span class="section-eyebrow">FAQ</span>
+        <h2 class="section-title">Часто задаваемые вопросы</h2>
+        <p class="section-subtitle">Всё, что нужно знать о механике работы и получении вознаграждения.</p>
+        <div class="faq-wrapper">
+            <div class="faq-item">
+                <div class="faq-question">Что такое Token-2022 и как удерживается налог? <span>+</span></div>
+                <div class="faq-answer">Token-2022 — это обновленный стандарт токенов на Solana, поддерживающий нативные расширения (Transfer Fee). Налог 0.1% удерживается прямо протоколом сети при каждом переводе.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">Как получить 10% Bounty за сбор налога? <span>+</span></div>
+                <div class="faq-answer">Подключите кошелек к этому сайту. Когда в Vault накопятся комиссии, кнопка «Собрать налог и сжечь» станет активной. Подтвердите транзакцию — 10% от суммы Vault мгновенно поступит на ваш кошелек.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">Может ли разработчик изменить налог или украсть средства? <span>+</span></div>
+                <div class="faq-answer">Нет. Права управления комиссией переведены на PDA смарт-контракта. Налог фиксирован на уровне 0.1%, а Mint и Freeze Authority полностью отключены.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">Почему кнопка сбора иногда неактивна? <span>+</span></div>
+                <div class="faq-answer">Кнопка активируется только тогда, когда сумма налога в Vault больше 0, а ваш кошелек подключен. Если сторонние MEV-боты вызывают сбор раньше, счетчик обнуляется.</div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div>© 2026 AXIS Protocol. Autonomous & Trustless.</div>
+        <div class="footer-links">
+            <a href="https://solscan.io" target="_blank">Solscan</a>
+            <a href="https://app.meteora.ag" target="_blank">Meteora DLMM</a>
+            <a href="https://dexscreener.com" target="_blank">DexScreener</a>
+        </div>
+    </footer>
+</div>
+
+<script>
+    // WEB3 CONFIG
+    const RPC_ENDPOINT = "https://api.mainnet-beta.solana.com"; 
+    const PROGRAM_ID = new solanaWeb3.PublicKey("GearSimpleCrank11111111111111111111111111111");
+    const MINT_ADDRESS = new solanaWeb3.PublicKey("ВАШ_MINT_ADDRESS_AXIS");
+    const VAULT_TOKEN_ACCOUNT = new solanaWeb3.PublicKey("ВАШ_VAULT_TOKEN_ACCOUNT");
+    const DEV_TREASURY = new solanaWeb3.PublicKey("ВАШ_DEV_TREASURY_PUBKEY");
+
+    const connection = new solanaWeb3.Connection(RPC_ENDPOINT, "confirmed");
+    let walletPubKey = null;
+
+    async function connectWallet() {
+        if ("solana" in window) {
+            try {
+                const response = await window.solana.connect();
+                walletPubKey = response.publicKey;
+                const base58 = walletPubKey.toBase58();
+                document.getElementById("connectBtn").innerText = base58.slice(0, 4) + "..." + base58.slice(-4);
+                document.getElementById("statusMessage").innerText = "Кошелек подключен";
+                fetchVaultBalance();
+            } catch (err) {
+                document.getElementById("statusMessage").innerText = "Ошибка: " + err.message;
+            }
+        } else {
+            alert("Кошелек Solana не найден (Phantom / Solflare).");
+        }
+    }
+
+    async function fetchVaultBalance() {
+        try {
+            const balanceData = await connection.getTokenAccountBalance(VAULT_TOKEN_ACCOUNT);
+            const total = balanceData.value.uiAmount || 0;
+
+            document.getElementById("vaultBalance").innerText = total.toLocaleString() + " $AXIS";
+            document.getElementById("bountyAmount").innerText = (total * 0.10).toLocaleString();
+            document.getElementById("burnAmount").innerText = (total * 0.60).toLocaleString();
+
+            if (total > 0 && walletPubKey) {
+                document.getElementById("harvestBtn").disabled = false;
+            } else {
+                document.getElementById("harvestBtn").disabled = true;
+            }
+        } catch (err) {
+            document.getElementById("statusMessage").innerText = "Ожидание инициализации Vault";
+        }
+    }
+
+    async function executeHarvest() {
+        if (!walletPubKey) return;
+
+        document.getElementById("harvestBtn").disabled = true;
+        document.getElementById("statusMessage").innerText = "Подтвердите транзакцию в кошельке...";
+
+        try {
+            const instructionData = Buffer.from([155, 234, 112, 45, 120, 19, 88, 102]); 
+
+            const keys = [
+                { pubkey: MINT_ADDRESS, isSigner: false, isWritable: false },
+                { pubkey: VAULT_TOKEN_ACCOUNT, isSigner: false, isWritable: true },
+                { pubkey: walletPubKey, isSigner: false, isWritable: false },
+                { pubkey: DEV_TREASURY, isSigner: false, isWritable: true },
+                { pubkey: walletPubKey, isSigner: false, isWritable: true },
+                { pubkey: new solanaWeb3.PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"), isSigner: false, isWritable: false }
+            ];
+
+            const ix = new solanaWeb3.TransactionInstruction({
+                keys,
+                programId: PROGRAM_ID,
+                data: instructionData,
+            });
+
+            const tx = new solanaWeb3.Transaction().add(ix);
+            tx.feePayer = walletPubKey;
+            tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+            const signedTx = await window.solana.signAndSendTransaction(tx);
+            document.getElementById("statusMessage").innerText = "Успешно! Tx: " + signedTx.signature.slice(0, 8) + "...";
+            
+            setTimeout(fetchVaultBalance, 3000);
+        } catch (err) {
+            document.getElementById("statusMessage").innerText = "Ошибка: " + err.message;
+            document.getElementById("harvestBtn").disabled = false;
+        }
+    }
+
+    // FAQ Accordion Toggle Script
+    document.querySelectorAll('.faq-question').forEach(item => {
+        item.addEventListener('click', () => {
+            const parent = item.parentNode;
+            parent.classList.toggle('active');
+        });
+    });
+
+    setInterval(fetchVaultBalance, 8000);
+</script>
+
+</body>
+</html>
